@@ -4,18 +4,16 @@ Panel personal para administrar el día a día. Es una sola página web (`index.
 
 ## Qué incluye
 
-- **Reloj de 24 horas**: mediodía arriba y medianoche abajo. El arco amarillo es tu jornada (por defecto 6:00–18:00, se cambia en *Ajustes*), la aguja rosa es la hora actual y en el centro se ve cuánto te queda de jornada. Los eventos de hoy aparecen como puntos sobre el reloj.
-- **Cuenta regresiva por evento**: cada fecha límite es un anillo.
-  - Más de 3 días: azul, lleno.
-  - Faltan 3 días: **verde**, empieza lleno y se vacía a lo largo de ese día.
-  - Faltan 2 días: **amarillo**, se vacía durante el día.
-  - Último día: **rojo**, se vacía hasta la hora límite.
-- **Baterías**: la del dispositivo donde abres el panel se lee automáticamente (Battery API: Chrome, Edge, Android; Safari/iPhone no la ofrece). Las demás (p. ej. tu teléfono) se actualizan a mano tocando la tarjeta.
-- **Límites de tus IAs**: usado / límite (o porcentaje), cuándo se reinicia y cada cuántas horas; al pasar la hora de reinicio se pone en cero solo. Botones +1 / − para ir contando.
-- **Dinero**: cuentas con saldo, total disponible, presupuesto mensual (se reinicia cada mes, con cuánto puedes gastar por día) y registro rápido de gastos e ingresos.
-- **Otros medidores**: agua, sueño, pasos o lo que quieras, con meta y botones de incremento.
+Todo es un anillo, del mismo estilo, y el panel se ajusta solo para caber en una pantalla sin desplazarse (laptop o teléfono).
 
-Toca cualquier elemento para editarlo o eliminarlo.
+- **Hoy** (el anillo un poco más grande): mediodía arriba, medianoche abajo. El arco amarillo es tu jornada (6:00–18:00 por defecto, se cambia en *Ajustes*), el punto rosa es la hora actual y los puntos oscuros son tus eventos de hoy.
+- **Fechas límite**: más de 3 días azul; faltan 3 días **verde**, 2 días **amarillo**, último día **rojo**. Cada uno empieza lleno y se vacía a lo largo de su día.
+- **Baterías**: la del dispositivo donde abres el panel se lee sola (Chrome, Edge, Android); las demás se actualizan tocando el anillo.
+- **IAs**: cuánto te queda libre y cuándo se reinicia; al tocarla aparecen botones −1 / +1.
+- **Dinero**: total y presupuesto del mes; al tocarlo ves cuentas, movimientos y registras gastos o ingresos.
+- **Medidores**: agua, sueño, pasos o lo que quieras, con meta.
+
+Toca cualquier anillo para verlo o editarlo, y el anillo **+** para agregar.
 
 ## Datos
 
