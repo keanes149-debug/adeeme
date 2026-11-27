@@ -65,13 +65,25 @@ max-width:1240px;width:100%;margin:8px auto 0;overflow:auto;--s:120px}
 .step{display:flex;gap:10px;justify-content:center;margin-top:14px}
 .step button{min-width:72px;min-height:48px;font-size:18px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:15px;z-index:20}
-@media(prefers-reduced-motion:reduce){.t svg{transition:none}}
+.mic{display:inline-flex;align-items:center;gap:6px}
+.mic svg{width:18px;height:18px}
+.vbtn{width:96px;height:96px;border-radius:50%;margin:6px auto 10px;display:flex;align-items:center;justify-content:center;background:var(--ink);color:var(--bg);border:0}
+.vbtn svg{width:38px;height:38px}
+.vbtn.on{background:var(--accent);color:#fff;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 50%,transparent)}50%{box-shadow:0 0 0 18px transparent}}
+textarea{display:block;width:100%;min-height:92px;font:inherit;font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical;margin-top:12px}
+.alist label{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
+.alist label:first-child{border-top:0}
+.alist input{margin-top:3px;width:18px;height:18px;flex:none}
+.err{color:var(--red);font-size:14px;text-align:center;margin-top:8px}
+.said{color:var(--mute);font-size:14px;font-style:italic;margin:-6px 0 10px}
+@media(prefers-reduced-motion:reduce){.t svg{transition:none}.vbtn.on{animation:none}}
 </style>
 </head>
 <body>
 <header>
   <div><div class="time" id="now">--:--</div><div class="date" id="date"></div></div>
-  <div class="hb"><button id="bSet">Ajustes</button></div>
+  <div class="hb"><button id="bVoice" class="pri mic"></button><button id="bSet">Ajustes</button></div>
 </header>
 <main id="tiles"></main>
 <input type="file" id="fileIn" accept="application/json" hidden>
@@ -261,13 +273,161 @@ function openAdd(){
    L.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>({ev:openEv,ai:openAiForm,dev:openDev,met:openMetForm,exp:()=>openMove(-1),acc:openAcc})[b.dataset.a]())})}
 function openSettings(){
   form('Ajustes',[{k:'name',label:'Tu nombre'},{k:'start',label:'Inicio de jornada (hora, ej. 6)',type:'number'},{k:'end',label:'Fin de jornada (hora, ej. 18)',type:'number'},
-   {k:'cur',label:'Símbolo de moneda'},{k:'budget',label:'Presupuesto mensual (0 = sin presupuesto)',type:'number'},{k:'budgetSpent',label:'Gastado este mes',type:'number'},{k:'reset',label:'Borrar todo y empezar vacío',type:'checkbox'}],
-   {...S.settings,reset:false},o=>{if(o.reset){const b=seed();S={settings:{...b.settings,name:o.name,budget:0,budgetSpent:0},events:[],devices:[b.devices[0]],ais:[],accounts:[],moves:[],meters:[]};hookBattery();return}
+   {k:'cur',label:'Símbolo de moneda'},{k:'oaKey',label:'Clave de OpenAI (para hablar fuera de Claude; se guarda solo en este dispositivo)',type:'password'},{k:'budget',label:'Presupuesto mensual (0 = sin presupuesto)',type:'number'},{k:'budgetSpent',label:'Gastado este mes',type:'number'},{k:'reset',label:'Borrar todo y empezar vacío',type:'checkbox'}],
+   {...S.settings,oaKey:getKey(),reset:false},o=>{setKey(o.oaKey);delete o.oaKey;if(o.reset){const b=seed();S={settings:{...b.settings,name:o.name,budget:0,budgetSpent:0},events:[],devices:[b.devices[0]],ais:[],accounts:[],moves:[],meters:[]};hookBattery();return}
     delete o.reset;o.start=((o.start%24)+24)%24;o.end=((o.end%24)+24)%24;o.cur=o.cur||'$';S.settings=o},null,
    `<div class="acts" style="justify-content:flex-start;margin:0 0 4px"><button type="button" id="bExp">Exportar copia</button><button type="button" id="bImp">Importar copia</button></div>`);
   $('bExp').onclick=()=>{try{const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');
     a.href=URL.createObjectURL(b);a.download='mi-panel-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();toast('Copia descargada')}catch(e){toast('No se pudo exportar aquí')}};
   $('bImp').onclick=()=>$('fileIn').click()}
+
+
+/* ---------- voz + IA ---------- */
+const MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const OA='mipanel.openai',OA_STT='gpt-4o-mini-transcribe',OA_CHAT='gpt-4o-mini';
+const getKey=()=>{try{return localStorage.getItem(OA)||''}catch(e){return''}};
+const setKey=k=>{try{k?localStorage.setItem(OA,k):localStorage.removeItem(OA)}catch(e){}};
+const useCap=n=>window.claude&&window.claude.use?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);
+let capDict=null,capSample=null,rec=null;
+useCap('dictation').then(d=>capDict=d);useCap('sample').then(x=>capSample=x);
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const canRecord=()=>!!(capDict||(getKey()&&navigator.mediaDevices&&window.MediaRecorder)||SR);
+
+function openVoice(prefill=''){
+  const mic=canRecord();
+  sheet(`<h2>¿Qué registro?</h2>
+   ${mic?`<button class="vbtn" id="vb" aria-label="Grabar">${MIC}</button><div class="cap" id="vs">Toca y habla. Toca otra vez para terminar.</div>`:`<div class="cap" id="vs">Escríbelo o usa el micrófono de tu teclado.</div>`}
+   <textarea id="vt" placeholder="Ej.: gasté 250 en café, el teléfono va en 30 %, presento el proyecto el viernes a las 10 y llevo 5 vasos de agua">${esc(prefill)}</textarea>
+   <div class="err" id="ve" hidden></div>
+   <div class="acts"><button id="vx">Cancelar</button><button class="pri" id="vgo">Registrar</button></div>`,()=>{
+   $('vx').onclick=()=>{close();rec&&rec.stop()};
+   $('vgo').onclick=()=>rec?rec.stop():interpret($('vt').value);
+   if(mic)$('vb').onclick=toggleRec})}
+function recUI(on,msg){const b=$('vb');b&&b.classList.toggle('on',on);const s=$('vs');if(s&&msg)s.textContent=msg}
+const stillOpen=()=>!!$('vt');
+function toggleRec(){
+  if(rec)return rec.stop();
+  const ta=$('vt'),pre=ta.value.trim()?ta.value.trim()+' ':'';
+  if(capDict){const d=capDict;let fin='';
+    const offs=[d.onPartial(({text})=>{ta.value=pre+fin+text}),d.onFinal(({text})=>{fin+=text+' ';ta.value=pre+fin}),
+      d.onState(({state,reason})=>{if(state==='listening')recUI(true,'Escuchando…');
+        if(state==='idle'){offs.forEach(f=>f());rec=null;const ok=reason==='stopped'||reason==='viewer_stopped';
+          recUI(false,ok?'Listo.':'No se pudo escuchar. Puedes escribirlo.');if(ok&&stillOpen()&&ta.value.trim())interpret(ta.value)}})];
+    rec={stop:()=>d.stop().catch(()=>{})};
+    d.start().catch(e=>{offs.forEach(f=>f());rec=null;recUI(false,e&&e.code==='not_granted'?'Sin permiso para el micrófono. Escríbelo.':'No se pudo iniciar. Escríbelo.')});
+    return}
+  if(getKey()&&navigator.mediaDevices&&window.MediaRecorder){
+    rec={stop:()=>{}};recUI(true,'Abriendo micrófono…');
+    navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+      const mime=['audio/webm','audio/mp4','audio/ogg'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+      const mr=new MediaRecorder(stream,mime?{mimeType:mime}:{}),chunks=[];
+      mr.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+      mr.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());rec=null;if(!stillOpen())return;recUI(false,'Transcribiendo…');
+        try{const txt=await oaTranscribe(new Blob(chunks,{type:mr.mimeType||mime||'audio/webm'}));if(!stillOpen())return;
+          ta.value=(pre+txt).trim();recUI(false,'Listo.');if(ta.value)interpret(ta.value)}catch(e){recUI(false,e.message)}};
+      mr.start();rec={stop:()=>mr.state!=='inactive'&&mr.stop()};recUI(true,'Grabando… toca para terminar');
+    }).catch(()=>{rec=null;recUI(false,'Sin acceso al micrófono. Escríbelo.')});return}
+  if(SR){const r=new SR();r.lang='es-MX';r.interimResults=true;r.continuous=true;
+    r.onresult=e=>{let t='';for(const x of e.results)t+=x[0].transcript;ta.value=pre+t};
+    r.onerror=()=>recUI(false,'No se pudo escuchar. Escríbelo.');
+    r.onend=()=>{rec=null;recUI(false,'Listo.');if(stillOpen()&&ta.value.trim())interpret(ta.value)};
+    try{r.start();rec={stop:()=>r.stop()};recUI(true,'Escuchando…')}catch(e){recUI(false,'No se pudo iniciar. Escríbelo.')}}}
+
+const oaErr=st=>st===401?'La clave de OpenAI no es válida.':st===429?'OpenAI rechazó la solicitud (sin saldo o demasiadas seguidas).':'OpenAI respondió con un error ('+st+').';
+async function oaFetch(path,init){let r;try{r=await fetch('https://api.openai.com/v1/'+path,init)}catch(e){throw new Error('No se pudo conectar con OpenAI.')}return r}
+async function oaTranscribe(blob){
+  const ext=blob.type.includes('mp4')?'m4a':blob.type.includes('ogg')?'ogg':'webm';
+  for(const model of [OA_STT,'whisper-1']){const fd=new FormData();fd.append('file',blob,'audio.'+ext);fd.append('model',model);fd.append('language','es');
+    const r=await oaFetch('audio/transcriptions',{method:'POST',headers:{Authorization:'Bearer '+getKey()},body:fd});
+    if(r.ok)return (await r.json()).text||'';if(r.status!==404&&r.status!==400)throw new Error(oaErr(r.status))}
+  throw new Error('No se pudo transcribir el audio.')}
+
+function aiPrompt(){
+  const n=new Date(),D={
+   eventos:S.events.map(e=>({id:e.id,nombre:e.name,limite:toLocal(e.due)})),
+   baterias:S.devices.map(d=>({id:d.id,nombre:d.name,nivel:Math.round(d.level)})),
+   ias:S.ais.map(a=>({id:a.id,nombre:a.name,usado:a.used,limite:a.limit,unidad:a.unit})),
+   cuentas:S.accounts.map(a=>({id:a.id,nombre:a.name,saldo:a.bal})),
+   medidores:S.meters.map(m=>({id:m.id,nombre:m.name,valor:m.val,meta:m.max,unidad:m.unit})),
+   jornada:{inicio:S.settings.start,fin:S.settings.end},presupuesto_mensual:S.settings.budget};
+  return `Eres el asistente de un panel personal. Convierte lo que dice el usuario en acciones para registrar.
+Ahora es ${toLocal(n)} (${n.toLocaleDateString('es',{weekday:'long'})}), hora local del usuario.
+Datos actuales: ${JSON.stringify(D)}
+Responde SOLO con JSON: {"actions":[...]}. Tipos de acción:
+- {"type":"add_event","name":"...","due":"AAAA-MM-DDTHH:mm"} pendiente o fecha límite. Sin hora: 09:00. Resuelve "hoy", "mañana", "el viernes" respecto a ahora, siempre hacia el futuro.
+- {"type":"edit_event","id":"...","name":"...","due":"..."} (name y due opcionales)
+- {"type":"remove_event","id":"..."} si dice que ya lo terminó o se canceló.
+- {"type":"battery","id":"...","name":"...","level":0-100,"charging":true|false}
+- {"type":"ai","id":"...","name":"...","used":n,"add":n,"limit":n,"unit":"%|mensajes|solicitudes|tokens|créditos","reset":"AAAA-MM-DDTHH:mm"} "used" es el total usado; "add" suma al uso. Todo opcional menos el nombre o id.
+- {"type":"expense","amount":n,"account_id":"...","note":"..."} gasto.
+- {"type":"income","amount":n,"account_id":"...","note":"..."} ingreso.
+- {"type":"balance","id":"...","name":"...","balance":n} saldo actual de una cuenta.
+- {"type":"meter","id":"...","name":"...","value":n,"add":n,"max":n,"unit":"..."} agua, sueño, pasos, ejercicio, lectura, etc.
+- {"type":"workday","start":h,"end":h} horas de 0 a 24, 6.5 = 6:30.
+- {"type":"budget","amount":n} presupuesto mensual.
+Usa el "id" cuando se refiera a algo que ya existe, aunque lo diga distinto o con errores. Si no existe, omite el id y pon "name": se creará. Montos como números positivos sin símbolo. Una acción por cada cosa mencionada. Si no hay nada que registrar: {"actions":[]}.`}
+async function askAI(text){
+  if(capSample){try{return await capSample.json([{role:'user',content:aiPrompt()+'\n\nLo que dijo el usuario:\n"""'+text+'"""'}],{modelTier:'quick'})}
+    catch(e){if(!getKey())throw new Error(e&&e.code==='not_granted'?'No diste permiso para usar la IA en este panel.':'La IA no respondió. Intenta otra vez.')}}
+  if(!getKey())throw new Error('Para usar la IA fuera de Claude, agrega tu clave de OpenAI en Ajustes.');
+  const r=await oaFetch('chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+getKey()},
+    body:JSON.stringify({model:OA_CHAT,temperature:0,response_format:{type:'json_object'},messages:[{role:'system',content:aiPrompt()},{role:'user',content:text}]})});
+  if(!r.ok)throw new Error(oaErr(r.status));
+  try{return JSON.parse((await r.json()).choices[0].message.content)}catch(e){throw new Error('La respuesta de la IA no se entendió.')}}
+
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+const pick=(arr,a)=>(a.id&&arr.find(x=>x.id===a.id))||(a.name&&arr.find(x=>norm(x.name)===norm(a.name)))||null;
+const pDate=s=>{const t=s?new Date(s).getTime():NaN;return isNaN(t)?0:t};
+const num=v=>typeof v==='number'?v:parseFloat(v);
+const ok=v=>isFinite(num(v));
+const accOf=a=>pick(S.accounts,{id:a.account_id})||S.accounts[0]||null;
+function describe(a){
+  switch(a&&a.type){
+  case 'add_event':return a.name&&pDate(a.due)?`Fecha límite: ${a.name} · ${fdate(pDate(a.due))}`:'';
+  case 'edit_event':{const e=pick(S.events,a);return e?`Cambiar «${e.name}»${a.name&&a.name!==e.name?' → '+a.name:''}${pDate(a.due)?' · '+fdate(pDate(a.due)):''}`:''}
+  case 'remove_event':{const e=pick(S.events,a);return e?`Quitar «${e.name}»`:''}
+  case 'battery':{const d=pick(S.devices,a);return ok(a.level)&&(d||a.name)?`Batería ${d?d.name:a.name}: ${Math.round(num(a.level))}%${a.charging?' (cargando)':''}`:''}
+  case 'ai':{const x=pick(S.ais,a),nm=x?x.name:a.name,u=a.unit||(x&&x.unit);if(!nm)return'';
+    const parts=[ok(a.used)?`uso ${num(a.used)}${u==='%'?'%':' '+(u||'')}`:ok(a.add)?`+${num(a.add)} ${u==='%'?'%':u||''}`:'',ok(a.limit)?`límite ${num(a.limit)}`:'',pDate(a.reset)?`reinicia ${fdate(pDate(a.reset))}`:''].filter(Boolean);
+    return parts.length?`IA ${nm}: ${parts.join(' · ')}`:''}
+  case 'expense':case 'income':{if(!(num(a.amount)>0))return'';const c=accOf(a);return `${a.type==='expense'?'Gasto':'Ingreso'} ${money(num(a.amount))}${a.note?' · '+a.note:''}${c?' ('+c.name+')':''}`}
+  case 'balance':{const x=pick(S.accounts,a);return ok(a.balance)&&(x||a.name)?`Saldo de ${x?x.name:a.name}: ${money(num(a.balance))}`:''}
+  case 'meter':{const x=pick(S.meters,a),nm=x?x.name:a.name;if(!nm||!(ok(a.value)||ok(a.add)||ok(a.max)))return'';
+    return `${nm}: ${ok(a.value)?num(a.value):ok(a.add)?'+'+num(a.add):(x?x.val:0)}${ok(a.max)?' / '+num(a.max):x?' / '+x.max:''} ${a.unit||(x&&x.unit)||''}`.trim()}
+  case 'workday':return ok(a.start)||ok(a.end)?`Jornada ${hfmt(ok(a.start)?num(a.start):S.settings.start)}–${hfmt(ok(a.end)?num(a.end):S.settings.end)}`:'';
+  case 'budget':return num(a.amount)>=0?`Presupuesto mensual: ${money(num(a.amount))}`:'';
+  default:return''}}
+function apply(a){
+  const n=Date.now(),clamp=v=>Math.max(0,Math.min(100,v));
+  switch(a.type){
+  case 'add_event':S.events.push({id:uid(),name:a.name,due:pDate(a.due)});break;
+  case 'edit_event':{const e=pick(S.events,a);if(a.name)e.name=a.name;if(pDate(a.due))e.due=pDate(a.due);break}
+  case 'remove_event':del(S.events,pick(S.events,a).id);break;
+  case 'battery':{let d=pick(S.devices,a);if(!d){d={id:uid(),name:a.name,level:0,charging:false};S.devices.push(d)}
+    if(d.auto&&d.live)break;d.level=clamp(num(a.level));d.charging=!!a.charging;d.at=n;break}
+  case 'ai':{let x=pick(S.ais,a);if(!x){x={id:uid(),name:a.name,used:0,limit:a.unit&&a.unit!=='%'?50:100,unit:a.unit||'%',reset:0,every:0};S.ais.push(x)}
+    if(a.unit)x.unit=a.unit;if(ok(a.limit))x.limit=num(a.limit);if(ok(a.used))x.used=num(a.used);else if(ok(a.add))x.used=+x.used+num(a.add);if(pDate(a.reset))x.reset=pDate(a.reset);break}
+  case 'expense':case 'income':{const v=num(a.amount),sg=a.type==='expense'?-1:1;let c=accOf(a);if(!c){c={id:uid(),name:'Efectivo',bal:0};S.accounts.push(c)}
+    c.bal=(+c.bal||0)+sg*v;if(sg<0)S.settings.budgetSpent+=v;S.moves.unshift({t:n,amt:sg*v,note:a.note||''});S.moves=S.moves.slice(0,30);break}
+  case 'balance':{let x=pick(S.accounts,a);if(!x){x={id:uid(),name:a.name,bal:0};S.accounts.push(x)}x.bal=num(a.balance);break}
+  case 'meter':{let x=pick(S.meters,a);if(!x){x={id:uid(),name:a.name,val:0,max:num(a.max)||10,unit:a.unit||'',step:1};S.meters.push(x)}
+    if(num(a.max)>0)x.max=num(a.max);if(a.unit)x.unit=a.unit;if(ok(a.value))x.val=num(a.value);else if(ok(a.add))x.val=Math.round((+x.val+num(a.add))*100)/100;break}
+  case 'workday':if(ok(a.start))S.settings.start=((num(a.start)%24)+24)%24;if(ok(a.end))S.settings.end=((num(a.end)%24)+24)%24;break;
+  case 'budget':S.settings.budget=num(a.amount);break}}
+
+async function interpret(text){
+  text=(text||'').trim();
+  if(!text){const e=$('ve');if(e){e.hidden=false;e.textContent='Di o escribe algo primero.'}return}
+  sheet(`<h2>Entendiendo…</h2><div class="said">«${esc(text)}»</div>`);
+  let acts=[],err='';
+  try{const out=await askAI(text);acts=(out&&Array.isArray(out.actions)?out.actions:[]).map(a=>({a,d:describe(a)})).filter(x=>x.d);
+    if(!acts.length)err='No encontré nada que registrar. Prueba decirlo de otra forma.'}catch(e){err=e.message||'Algo falló.'}
+  sheet(`<h2>${acts.length?'¿Registro esto?':'No pude registrarlo'}</h2><div class="said">«${esc(text)}»</div>
+   ${acts.length?`<div class="alist">${acts.map((x,i)=>`<label><input type="checkbox" id="ac${i}" checked><span>${esc(x.d)}</span></label>`).join('')}</div>`:`<div class="err">${esc(err)}</div>`}
+   <div class="acts"><button id="rAg">Volver a decirlo</button><span class="sp"></span>${acts.length?'<button class="pri" id="rOk">Registrar</button>':'<button id="rX">Cerrar</button>'}</div>`,()=>{
+   $('rAg').onclick=()=>openVoice(text);
+   if(!acts.length)return $('rX').onclick=close;
+   $('rOk').onclick=()=>{let c=0;acts.forEach((x,i)=>{if($('ac'+i).checked){try{apply(x.a);c++}catch(e){}}});close();done();toast(c===1?'1 cosa registrada':c+' cosas registradas')}})}
 
 /* ---------- batería en vivo ---------- */
 async function hookBattery(){
@@ -279,7 +439,7 @@ async function hookBattery(){
 /* ---------- interacción ---------- */
 $('tiles').addEventListener('click',e=>{const t=e.target.closest('[data-k]');if(!t)return;const[k,id]=t.dataset.k.split(':'),find=a=>a.find(x=>x.id===id);
   ({day:openSettings,add:openAdd,money:openMoney,ev:()=>openEv(find(S.events)),dev:()=>openDev(find(S.devices)),ai:()=>openAi(find(S.ais)),met:()=>openMet(find(S.meters))})[k]()});
-$('bSet').onclick=openSettings;
+$('bSet').onclick=openSettings;$('bVoice').innerHTML=MIC+'Hablar';$('bVoice').onclick=openVoice;
 $('fileIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!o.settings)throw 0;S=o;close();save();lastFit='';render();hookBattery();toast('Datos importados')}catch(x){toast('Archivo no válido')}e.target.value=''};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 

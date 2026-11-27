@@ -15,6 +15,13 @@ Todo es un anillo, del mismo estilo, y el panel se ajusta solo para caber en una
 
 Toca cualquier anillo para verlo o editarlo, y el anillo **+** para agregar.
 
+## Registrar hablando
+
+Toca **Hablar**, di todo de corrido (por ejemplo: «gasté 250 en café, el teléfono va en 30 %, presento el proyecto el viernes a las 10 y llevo 5 vasos de agua») y la IA lo convierte en registros. Antes de guardar te muestra la lista para que confirmes o desmarques lo que no quieras.
+
+- **Dentro de Claude** (el enlace del artifact): usa el dictado y la IA de Claude, sin clave. El dictado funciona en Chrome/Edge de escritorio y en la app de escritorio; en el teléfono escribe o usa el micrófono del teclado.
+- **Fuera de Claude** (abriendo `index.html` o instalada como app): pon tu clave de OpenAI en *Ajustes*. Se graba el audio, se transcribe con `gpt-4o-mini-transcribe` y se interpreta con `gpt-4o-mini`. La clave se guarda solo en ese navegador (`localStorage`), nunca en el repositorio ni en la copia exportada. Si no hay clave pero el navegador tiene reconocimiento de voz (Chrome), se usa para dictar, pero la interpretación sí necesita la clave.
+
 ## Datos
 
 Todo se guarda en el `localStorage` del navegador. Usa **Exportar** para descargar una copia `.json` e **Importar** para cargarla en otro dispositivo.
