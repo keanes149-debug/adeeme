@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#06222e">
+<title>Mi Panel Diario</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday, un tablero personal que se mira varias veces al día
+   IDEA el panel de instrumentos de un coche: relojes, testigos y medidores que se leen de un vistazo
+   PICTURE reloj de 24 h grande (mediodía arriba, la jornada como un arco de sol) + anillos de cuenta regresiva verde/amarillo/rojo
+   COLOUR fondo hielo #dff1f7 / noche #06222e, tinta #06222e, rosa #ff2e7e para "ahora", semáforo para urgencia
+   TYPE Space Grotesk (cifras y títulos) + Inter (texto)
+   LAYOUT laptop: reloj a la izquierda, anillos a la derecha; debajo tarjetas de batería, IA, dinero y medidores. Teléfono: todo apilado */
+:root{color-scheme:light dark;
+--bg:light-dark(#dff1f7,#06222e);--card:light-dark(#ffffff,#0b2d3b);--ink:light-dark(#06222e,#e4f3f8);
+--mute:light-dark(#4b6b78,#8db0bd);--line:light-dark(#bfdde8,#1c4859);--track:light-dark(#e4f0f4,#123a4a);
+--accent:#ff2e7e;--green:light-dark(#16a058,#2fd27a);--yellow:light-dark(#d99a00,#ffc93a);--red:light-dark(#e2353a,#ff5d62);
+--far:light-dark(#3d93bb,#5bb8de);--day:light-dark(#ffd76a,#e8b93c)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip;
+padding:clamp(16px,3vw,36px) max(4vw,16px,env(safe-area-inset-right,0px)) 48px max(4vw,16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1240px;margin:0 auto}
+h1,h2,.num{font-family:"Space Grotesk",Inter,sans-serif;letter-spacing:-.02em}
+h1{font-size:clamp(30px,4.4vw,44px);line-height:1.05;margin:0}
+h2{font-size:20px;margin:0}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:22px}
+.now{font-family:"Space Grotesk",sans-serif;font-size:clamp(22px,3vw,30px);font-weight:600;white-space:nowrap}
+.sub{color:var(--mute);font-size:15px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:15px;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;min-height:40px}
+button:hover{border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button.ghost{background:transparent;border-color:transparent;color:var(--mute);padding:6px 10px;min-height:34px}
+button.ghost:hover{color:var(--ink);border-color:var(--line)}
+button.danger{color:var(--red)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
+.top{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;margin-bottom:18px}
+.clockcard{display:flex;flex-direction:column}
+.clock{width:100%;max-width:520px;margin:0 auto;aspect-ratio:1}
+.clock svg{width:100%;height:100%;display:block}
+.chips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.chip{border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.chip b{display:block;font-family:"Space Grotesk",sans-serif;font-size:20px;white-space:nowrap}
+.chip span{color:var(--mute);font-size:13px}
+.rings{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.ring{border:1px solid var(--line);border-radius:16px;padding:12px 10px;text-align:center;cursor:pointer;background:transparent;color:inherit;display:block;width:100%}
+.ring svg{width:118px;height:118px;display:block;margin:0 auto 6px}
+.ring .n{font-weight:600;font-size:15px;line-height:1.25;overflow-wrap:anywhere}
+.ring .d{color:var(--mute);font-size:13px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--mute);font-size:13px;margin-top:14px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .t{font-weight:600;overflow-wrap:anywhere;cursor:pointer}
+.row .v{font-family:"Space Grotesk",sans-serif;font-weight:600;white-space:nowrap;text-align:right}
+.row .m{grid-column:1/-1;color:var(--mute);font-size:13px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.bar{grid-column:1/-1;height:10px;border-radius:6px;background:var(--track);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:6px;transition:width .4s}
+.batt{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.bat{border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;background:transparent;color:inherit;text-align:left;width:100%}
+.bat svg{width:100%;height:46px;display:block;margin:6px 0}
+.bat .n{font-weight:600;font-size:15px;overflow-wrap:anywhere}
+.bat .d{color:var(--mute);font-size:13px}
+.big{font-family:"Space Grotesk",sans-serif;font-size:clamp(30px,4vw,40px);font-weight:700;line-height:1.05;white-space:nowrap}
+.mini{display:flex;gap:6px;flex-wrap:wrap}
+.mini button{min-height:32px;padding:3px 10px;font-size:14px}
+.empty{color:var(--mute);font-size:15px;padding:18px 0;text-align:center}
+.foot{color:var(--mute);font-size:13px;margin-top:22px;text-align:center}
+.modal{position:fixed;inset:0;background:color-mix(in srgb,#000 45%,transparent);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.sheet{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;width:min(460px,100%);max-height:90vh;overflow:auto}
+.sheet h2{margin-bottom:14px}
+.f{display:block;margin-bottom:12px}
+.f span{display:block;font-size:14px;color:var(--mute);margin-bottom:4px}
+.f input,.f select{width:100%;font:inherit;font-size:16px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.f.ck{display:flex;gap:8px;align-items:center}
+.f.ck input{width:auto}
+.f.ck span{margin:0;color:var(--ink)}
+.acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+.acts .sp{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:15px;z-index:20}
+@media(max-width:860px){.top,.grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){header>div:last-child{text-align:left!important;width:100%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}}
+@media(max-width:420px){.chips{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.chips .chip:last-child{grid-column:1/-1}.ring svg{width:100px;height:100px}.rings{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.bar>i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1 id="hello">Mi panel del día</h1>
+    <div class="sub" id="today"></div>
+  </div>
+  <div style="text-align:right">
+    <div class="now" id="nowTime">--:--</div>
+    <div class="tools">
+      <button class="ghost" id="bSettings">Ajustes</button>
+      <button class="ghost" id="bExport">Exportar</button>
+      <button class="ghost" id="bImport">Importar</button>
+      <input type="file" id="fileIn" accept="application/json" hidden>
+    </div>
+  </div>
+</header>
+
+<section class="top">
+  <div class="card clockcard">
+    <div class="head"><h2>Tu día en 24 horas</h2><span class="sub" id="winLbl"></span></div>
+    <div class="clock" id="clock"></div>
+    <div class="chips">
+      <div class="chip"><b id="cWin">–</b><span id="cWinL">quedan de jornada</span></div>
+      <div class="chip"><b id="cMid">–</b><span>hasta medianoche</span></div>
+      <div class="chip"><b id="cPct">–</b><span>del día transcurrido</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="head"><h2>Cuenta regresiva</h2><button id="addEv">+ Evento</button></div>
+    <div class="rings" id="rings"></div>
+    <div class="legend">
+      <span><i style="background:var(--far)"></i>más de 3 días</span>
+      <span><i style="background:var(--green)"></i>faltan 3 días</span>
+      <span><i style="background:var(--yellow)"></i>faltan 2 días</span>
+      <span><i style="background:var(--red)"></i>último día</span>
+    </div>
+    <div class="sub" style="font-size:13px;margin-top:6px">Cada anillo empieza lleno y se vacía a lo largo de su día.</div>
+  </div>
+</section>
+
+<section class="grid">
+  <div class="card">
+    <div class="head"><h2>Baterías</h2><button id="addDev">+ Dispositivo</button></div>
+    <div class="batt" id="batt"></div>
+    <div class="sub" style="font-size:13px;margin-top:12px">La batería de este dispositivo se lee sola (Chrome, Edge, Android). Para los demás, toca la tarjeta y actualiza el nivel, o abre este panel en ese aparato.</div>
+  </div>
+  <div class="card">
+    <div class="head"><h2>Límites de mis IAs</h2><button id="addAi">+ IA</button></div>
+    <div id="ais"></div>
+  </div>
+  <div class="card">
+    <div class="head"><h2>Dinero</h2><div class="mini"><button id="addExp">− Gasto</button><button id="addInc">+ Ingreso</button><button id="addAcc">+ Cuenta</button></div></div>
+    <div class="big" id="total">–</div>
+    <div class="sub" style="margin-bottom:6px">total disponible</div>
+    <div id="budget"></div>
+    <div id="accs"></div>
+    <div id="moves"></div>
+  </div>
+  <div class="card">
+    <div class="head"><h2>Otros medidores</h2><button id="addMet">+ Medidor</button></div>
+    <div id="mets"></div>
+  </div>
+</section>
+<div class="foot" id="foot">Tus datos se guardan solo en este navegador. Usa Exportar / Importar para pasarlos a otro dispositivo.</div>
+</div>
+<div id="layer"></div>
+
+<script>
+{
+const H=3600e3,DAY=24*H,$=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const KEY='mipanel.v1';
+const at=(dDays,h,m=0)=>{const d=new Date();d.setDate(d.getDate()+dDays);d.setHours(h,m,0,0);return d.getTime()};
+
+function seed(){const n=Date.now();return{
+  settings:{name:'',start:6,end:18,cur:'$',budget:12000,budgetSpent:7830,budgetMonth:new Date().getMonth()},
+  events:[
+    {id:uid(),name:'Presentar proyecto',due:at(2,10)},
+    {id:uid(),name:'Entrega de reporte',due:n+7*H},
+    {id:uid(),name:'Pago de tarjeta',due:n+2.6*DAY},
+    {id:uid(),name:'Cita médica',due:at(6,16,30)}],
+  devices:[
+    {id:'auto',name:'Este dispositivo',kind:'laptop',auto:true,level:80,charging:false,at:n},
+    {id:uid(),name:'Teléfono',kind:'phone',level:46,charging:false,at:n-40*60e3}],
+  ais:[
+    {id:uid(),name:'Claude',used:68,limit:100,unit:'%',reset:n+3.2*H,every:5},
+    {id:uid(),name:'ChatGPT',used:22,limit:40,unit:'mensajes',reset:n+2.4*H,every:3},
+    {id:uid(),name:'Cursor',used:310,limit:500,unit:'solicitudes',reset:at(12,0),every:0}],
+  accounts:[
+    {id:uid(),name:'Banco',bal:18400},{id:uid(),name:'Efectivo',bal:1250},{id:uid(),name:'Ahorro',bal:35000}],
+  moves:[{t:n-3*H,amt:-180,note:'Comida'},{t:n-26*H,amt:-640,note:'Gasolina'},{t:n-50*H,amt:4500,note:'Pago freelance'}],
+  meters:[
+    {id:uid(),name:'Agua',val:5,max:8,unit:'vasos',step:1},
+    {id:uid(),name:'Sueño',val:6.5,max:8,unit:'h',step:.5},
+    {id:uid(),name:'Pasos',val:6200,max:10000,unit:'pasos',step:500}],
+  example:true}}
+
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.settings)S=seed();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+
+/* ---------- formato ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const hm=d=>pad(d.getHours())+':'+pad(d.getMinutes());
+const dur=ms=>{ms=Math.max(0,ms);const d=Math.floor(ms/DAY),h=Math.floor(ms%DAY/H),m=Math.floor(ms%H/60e3);
+  return d?`${d}d ${h}h`:h?`${h}h ${pad(m)}m`:`${m} min`};
+const ago=t=>{const m=Math.round((Date.now()-t)/60e3);return m<1?'ahora':m<60?`hace ${m} min`:m<1440?`hace ${Math.round(m/60)} h`:`hace ${Math.round(m/1440)} d`};
+const money=v=>(v<0?'−':'')+S.settings.cur+' '+Math.abs(v).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:2});
+const fdate=t=>new Date(t).toLocaleString('es',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const toLocal=t=>{const d=new Date(t);return new Date(d-d.getTimezoneOffset()*60e3).toISOString().slice(0,16)};
+const hfmt=h=>{const x=((h%24)+24)%24,hh=Math.floor(x),mm=Math.round((x-hh)*60);return pad(hh)+':'+pad(mm)};
+
+/* ---------- anillo de evento ---------- */
+function evState(e,now){
+  const r=e.due-now;
+  if(r<=0)return{col:'var(--mute)',frac:0,label:'Vencido',tag:'over'};
+  const days=r/DAY,idx=Math.ceil(days),frac=days-(idx-1);
+  const col=idx>3?'var(--far)':idx===3?'var(--green)':idx===2?'var(--yellow)':'var(--red)';
+  return{col,frac:idx>3?1:frac,label:dur(r),idx}}
+function ringSvg(frac,col,label,sub){
+  const R=50,C=2*Math.PI*R;
+  return `<svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--track)" stroke-width="12"/>
+  <circle cx="60" cy="60" r="${R}" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round"
+   stroke-dasharray="${(C*frac).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 60 60)"/>
+  <text x="60" y="${sub?60:66}" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="${label.length>7?17:20}" fill="var(--ink)">${esc(label)}</text>
+  ${sub?`<text x="60" y="80" text-anchor="middle" font-size="12" fill="var(--mute)">${esc(sub)}</text>`:''}</svg>`}
+function renderEvents(){
+  const now=Date.now(),list=[...S.events].sort((a,b)=>a.due-b.due);
+  $('rings').innerHTML=list.length?list.map(e=>{const s=evState(e,now);
+    const sub=s.tag==='over'?'':s.idx>3?'faltan':Math.round(s.frac*100)+'% del día';
+    return `<button class="ring" data-ev="${e.id}" aria-label="${esc(e.name)}: ${esc(s.label)}">${ringSvg(s.frac,s.col,s.label,sub)}
+    <div class="n">${esc(e.name)}</div><div class="d">${esc(fdate(e.due))}</div></button>`}).join('')
+    :'<div class="empty">Sin eventos. Agrega tu primera fecha límite.</div>'}
+
+/* ---------- reloj 24 h (mediodía arriba) ---------- */
+function polar(h,r){const a=(h-12)/24*2*Math.PI;return[200+r*Math.sin(a),200-r*Math.cos(a)]}
+function arc(h1,h2,r){if(h2<h1)h2+=24;const[x1,y1]=polar(h1,r),[x2,y2]=polar(h2,r);const big=(h2-h1)>12?1:0;
+  return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${big} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`}
+function renderClock(){
+  const d=new Date(),nowH=d.getHours()+d.getMinutes()/60+d.getSeconds()/3600;
+  const {start,end}=S.settings,R=150;
+  let s=`<svg viewBox="0 0 400 400" role="img" aria-label="Reloj de 24 horas">`;
+  s+=`<circle cx="200" cy="200" r="${R}" fill="none" stroke="var(--track)" stroke-width="34"/>`;
+  // jornada completa
+  s+=`<path d="${arc(start,end,R)}" fill="none" stroke="var(--day)" stroke-width="34" opacity=".45"/>`;
+  // transcurrido de 0 a ahora
+  s+=`<path d="${arc(0,Math.max(nowH,.001),R+24)}" fill="none" stroke="var(--mute)" stroke-width="5" stroke-linecap="round" opacity=".55"/>`;
+  // jornada restante
+  const inWin=start<end?(nowH>=start&&nowH<end):(nowH>=start||nowH<end);
+  if(inWin)s+=`<path d="${arc(nowH,end,R)}" fill="none" stroke="var(--day)" stroke-width="34"/>`;
+  else if(start<end&&nowH<start)s+=`<path d="${arc(start,end,R)}" fill="none" stroke="var(--day)" stroke-width="34"/>`;
+  // marcas horarias
+  for(let h=0;h<24;h++){const [x1,y1]=polar(h,R-17-(h%6?0:2)),[x2,y2]=polar(h,R-17-(h%3?6:12));
+    s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--ink)" stroke-width="${h%6?1:2}" opacity=".5"/>`;
+    if(h%3===0){const[tx,ty]=polar(h,R-36);s+=`<text x="${tx}" y="${ty+5}" text-anchor="middle" font-size="14" fill="var(--mute)" font-family="Space Grotesk,sans-serif">${h}</text>`}}
+  // eventos de hoy
+  const t0=new Date(d).setHours(0,0,0,0);
+  S.events.filter(e=>e.due>=t0&&e.due<t0+DAY).forEach(e=>{const eh=(e.due-t0)/H,[x,y]=polar(eh,R),st=evState(e,Date.now());
+    s+=`<circle cx="${x}" cy="${y}" r="8" fill="${st.col}" stroke="var(--card)" stroke-width="3"><title>${esc(e.name)} · ${hm(new Date(e.due))}</title></circle>`});
+  // aguja
+  const[hx,hy]=polar(nowH,R+20),[bx,by]=polar(nowH,58);
+  s+=`<line x1="${bx}" y1="${by}" x2="${hx}" y2="${hy}" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>`;
+  s+=`<circle cx="${hx}" cy="${hy}" r="6" fill="var(--accent)"/>`;
+  // centro
+  const toEnd=((end-nowH+24)%24)*H,toStart=((start-nowH+24)%24)*H;
+  const big=inWin?dur(toEnd):dur(toStart),cap=inWin?'quedan de tu jornada':'para empezar tu jornada';
+  s+=`<text x="200" y="196" text-anchor="middle" font-family="Space Grotesk,sans-serif" font-weight="700" font-size="40" fill="var(--ink)">${big}</text>`;
+  s+=`<text x="200" y="222" text-anchor="middle" font-size="14" fill="var(--mute)">${cap}</text>`;
+  s+=`<text x="200" y="66" text-anchor="middle" font-size="12" fill="var(--mute)">mediodía</text><text x="200" y="344" text-anchor="middle" font-size="12" fill="var(--mute)">medianoche</text>`;
+  $('clock').innerHTML=s+'</svg>';
+  $('winLbl').textContent='Jornada '+hfmt(start)+'–'+hfmt(end);
+  $('cWin').textContent=inWin?dur(toEnd):dur(toStart);
+  $('cWinL').textContent=inWin?'quedan de jornada':'para tu jornada';
+  $('cMid').textContent=dur((24-nowH)*H);
+  $('cPct').textContent=Math.round(nowH/24*100)+'%';
+  $('nowTime').textContent=hm(d);
+  $('today').textContent=d.toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  $('hello').textContent=S.settings.name?`Hola, ${S.settings.name}`:'Mi panel del día'}
+
+/* ---------- baterías ---------- */
+const batCol=l=>l<=20?'var(--red)':l<=40?'var(--yellow)':'var(--green)';
+function batSvg(l,ch,kind){
+  const w=kind==='phone'?74:120,x=(130-w)/2;
+  return `<svg viewBox="0 0 140 46" aria-hidden="true"><rect x="${x}" y="4" width="${w}" height="38" rx="7" fill="none" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>
+  <rect x="${x+w+2}" y="15" width="6" height="16" rx="2" fill="var(--ink)" opacity=".7"/>
+  <rect x="${x+4}" y="8" width="${Math.max(0,(w-8)*l/100)}" height="30" rx="4" fill="${batCol(l)}"/>
+  ${ch?`<path d="M${x+w/2+3} 9 l-10 15 h8 l-4 13 l12 -17 h-8 z" fill="var(--ink)"/>`:''}</svg>`}
+function renderBatt(){
+  $('batt').innerHTML=S.devices.map(v=>`<button class="bat" data-dev="${v.id}">
+   <div class="n">${esc(v.name)}</div>${batSvg(v.level,v.charging,v.kind)}
+   <div class="num" style="font-size:24px;font-weight:700">${Math.round(v.level)}%</div>
+   <div class="d">${v.auto?(v.live?(v.charging?'cargando · en vivo':'en vivo'):'automático no disponible aquí'):(v.charging?'cargando · ':'')+ago(v.at)}</div></button>`).join('')}
+async function hookBattery(){
+  const dev=S.devices.find(v=>v.auto);if(!dev||!navigator.getBattery)return;
+  try{const b=await navigator.getBattery();
+    const up=()=>{dev.level=b.level*100;dev.charging=b.charging;dev.live=true;dev.at=Date.now();renderBatt()};
+    up();b.addEventListener('levelchange',up);b.addEventListener('chargingchange',up)}catch(e){}}
+
+/* ---------- IAs ---------- */
+function rollAi(){const n=Date.now();let ch=false;
+  S.ais.forEach(a=>{if(a.reset&&a.reset<=n&&a.every>0){while(a.reset<=n)a.reset+=a.every*H;a.used=0;ch=true}});if(ch)save()}
+function renderAi(){
+  rollAi();
+  $('ais').innerHTML=S.ais.length?S.ais.map(a=>{const p=Math.min(1,a.used/(a.limit||1)),left=Math.max(0,a.limit-a.used);
+    const col=p>=.9?'var(--red)':p>=.7?'var(--yellow)':'var(--green)';
+    const rs=a.reset?(a.reset>Date.now()?'se reinicia en '+dur(a.reset-Date.now()):'reinicio pendiente'):'';
+    return `<div class="row"><div class="t" data-ai="${a.id}">${esc(a.name)}</div>
+    <div class="v">${a.unit==='%'?Math.round(a.used)+'%':esc(a.used)+' / '+esc(a.limit)}</div>
+    <div class="bar"><i style="width:${p*100}%;background:${col}"></i></div>
+    <div class="m"><span>${a.unit==='%'?Math.round(100-a.used)+'% disponible':esc(left)+' '+esc(a.unit)+' libres'}</span>${rs?`<span>${rs}</span>`:''}
+    <span class="mini" style="margin-left:auto"><button data-aiu="${a.id}" data-d="-1" aria-label="Menos">−</button><button data-aiu="${a.id}" data-d="1" aria-label="Más">+1</button></span></div></div>`}).join('')
+    :'<div class="empty">Agrega tus suscripciones de IA y sus límites.</div>'}
+
+/* ---------- dinero ---------- */
+function renderMoney(){
+  const st=S.settings,m=new Date().getMonth();
+  if(st.budgetMonth!==m){st.budgetMonth=m;st.budgetSpent=0;save()}
+  $('total').textContent=money(S.accounts.reduce((s,a)=>s+(+a.bal||0),0));
+  const p=st.budget?Math.min(1,st.budgetSpent/st.budget):0,col=p>=.9?'var(--red)':p>=.7?'var(--yellow)':'var(--green)';
+  const dl=new Date(new Date().getFullYear(),m+1,0).getDate()-new Date().getDate()+1;
+  $('budget').innerHTML=st.budget?`<div class="row" style="border-top:0"><div class="t" data-bud="1">Presupuesto del mes</div><div class="v">${money(st.budgetSpent)} / ${money(st.budget)}</div>
+   <div class="bar"><i style="width:${p*100}%;background:${col}"></i></div>
+   <div class="m"><span>${money(Math.max(0,st.budget-st.budgetSpent))} libres</span><span>≈ ${money(Math.max(0,(st.budget-st.budgetSpent)/dl))} por día · ${dl} ${dl===1?'día':'días'} restantes</span></div></div>`:'';
+  $('accs').innerHTML=S.accounts.map(a=>`<div class="row"><div class="t" data-acc="${a.id}">${esc(a.name)}</div><div class="v">${money(+a.bal||0)}</div></div>`).join('');
+  $('moves').innerHTML=S.moves.length?`<div class="sub" style="font-size:13px;margin:10px 0 2px">Últimos movimientos</div>`+S.moves.slice(0,4).map(v=>
+   `<div class="row" style="padding:6px 0"><div style="font-size:15px">${esc(v.note||(v.amt<0?'Gasto':'Ingreso'))} <span class="sub" style="font-size:13px">· ${ago(v.t)}</span></div>
+   <div class="v" style="color:${v.amt<0?'var(--red)':'var(--green)'}">${v.amt<0?'':'+'}${money(v.amt)}</div></div>`).join(''):''}
+
+/* ---------- medidores ---------- */
+function renderMet(){
+  $('mets').innerHTML=S.meters.length?S.meters.map(x=>{const p=Math.min(1,x.val/(x.max||1));
+    return `<div class="row"><div class="t" data-met="${x.id}">${esc(x.name)}</div><div class="v">${esc(x.val)} / ${esc(x.max)} <span class="sub" style="font-weight:400">${esc(x.unit)}</span></div>
+    <div class="bar"><i style="width:${p*100}%;background:${p>=1?'var(--green)':'var(--far)'}"></i></div>
+    <div class="m"><span>${Math.round(p*100)}%</span><span class="mini" style="margin-left:auto"><button data-mu="${x.id}" data-d="-1" aria-label="Menos">−${esc(x.step)}</button><button data-mu="${x.id}" data-d="1" aria-label="Más">+${esc(x.step)}</button></span></div></div>`}).join('')
+    :'<div class="empty">Agua, sueño, pasos, lo que quieras medir.</div>'}
+
+function renderAll(){renderClock();renderEvents();renderBatt();renderAi();renderMoney();renderMet();
+  $('foot').textContent=(S.example?'Datos de ejemplo: edítalos o bórralos tocando cada elemento. ':'')+'Tus datos se guardan solo en este navegador. Usa Exportar / Importar para pasarlos a otro dispositivo.'}
+
+/* ---------- formulario genérico ---------- */
+function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;document.body.append(el);setTimeout(()=>el.remove(),2200)}
+function form(title,fields,obj,onSave,onDel){
+  const L=$('layer');
+  L.innerHTML=`<div class="modal" id="mod"><form class="sheet" id="frm"><h2>${esc(title)}</h2>
+  ${fields.map(f=>f.type==='checkbox'?`<label class="f ck"><input type="checkbox" id="f_${f.k}" ${obj[f.k]?'checked':''}><span>${esc(f.label)}</span></label>`
+   :f.type==='select'?`<label class="f"><span>${esc(f.label)}</span><select id="f_${f.k}">${f.opts.map(o=>`<option value="${esc(o[0])}" ${String(obj[f.k])===String(o[0])?'selected':''}>${esc(o[1])}</option>`).join('')}</select></label>`
+   :`<label class="f"><span>${esc(f.label)}</span><input id="f_${f.k}" type="${f.type||'text'}" ${f.type==='number'?'step="any" inputmode="decimal"':''} ${f.req?'required':''} value="${esc(f.type==='datetime-local'?(obj[f.k]?toLocal(obj[f.k]):''):obj[f.k]??'')}"></label>`).join('')}
+  <div class="acts">${onDel?'<button type="button" class="danger" id="fDel">Eliminar</button><span class="sp"></span>':''}<button type="button" id="fCan">Cancelar</button><button class="pri" type="submit">Guardar</button></div></form></div>`;
+  const close=()=>L.innerHTML='';
+  $('fCan').onclick=close;$('mod').onclick=e=>{if(e.target.id==='mod')close()};
+  if(onDel){let armed=false;$('fDel').onclick=()=>{if(!armed){armed=true;$('fDel').textContent='¿Seguro? Toca otra vez';return}onDel();close();done()}}
+  $('frm').onsubmit=e=>{e.preventDefault();const o={...obj};
+    for(const f of fields){const el=$('f_'+f.k);
+      o[f.k]=f.type==='checkbox'?el.checked:f.type==='number'?(el.value===''?0:+el.value):f.type==='datetime-local'?(el.value?new Date(el.value).getTime():0):el.value.trim()}
+    onSave(o);close();done()};
+  setTimeout(()=>{const i=L.querySelector('input,select');i&&i.focus()},30)}
+const done=()=>{S.example=false;save();renderAll()};
+const upsert=(arr,o)=>{const i=arr.findIndex(x=>x.id===o.id);i<0?arr.push(o):arr[i]=o};
+const del=(arr,id)=>{const i=arr.findIndex(x=>x.id===id);if(i>=0)arr.splice(i,1)};
+
+const F={
+ ev:[{k:'name',label:'¿Qué tienes que hacer?',req:1},{k:'due',label:'Fecha y hora límite',type:'datetime-local',req:1}],
+ dev:[{k:'name',label:'Nombre',req:1},{k:'kind',label:'Tipo',type:'select',opts:[['laptop','Laptop'],['phone','Teléfono'],['other','Otro (tablet, reloj…)']]},{k:'level',label:'Nivel de batería (%)',type:'number'},{k:'charging',label:'Está cargando',type:'checkbox'}],
+ ai:[{k:'name',label:'Nombre de la IA',req:1},{k:'unit',label:'Unidad',type:'select',opts:[['%','Porcentaje usado'],['mensajes','Mensajes'],['solicitudes','Solicitudes'],['tokens','Tokens'],['créditos','Créditos']]},{k:'used',label:'Usado',type:'number'},{k:'limit',label:'Límite (100 si es %)',type:'number'},{k:'reset',label:'Próximo reinicio',type:'datetime-local'},{k:'every',label:'Se reinicia cada (horas, 0 = no repetir)',type:'number'}],
+ acc:[{k:'name',label:'Cuenta',req:1},{k:'bal',label:'Saldo',type:'number'}],
+ met:[{k:'name',label:'Nombre',req:1},{k:'val',label:'Valor actual',type:'number'},{k:'max',label:'Meta',type:'number'},{k:'unit',label:'Unidad',req:0},{k:'step',label:'Incremento de los botones',type:'number'}]};
+
+const openEv=e=>form(e?'Editar evento':'Nuevo evento',F.ev,e||{id:uid(),name:'',due:at(3,10)},o=>upsert(S.events,o),e&&(()=>del(S.events,e.id)));
+const openDev=v=>v&&v.auto&&v.live?toast('Esta batería se lee automáticamente'):form(v?'Editar dispositivo':'Nuevo dispositivo',v&&v.auto?F.dev.slice(1):F.dev,v||{id:uid(),name:'',kind:'phone',level:50,charging:false},o=>{o.level=Math.max(0,Math.min(100,o.level));o.at=Date.now();upsert(S.devices,o)},v&&!v.auto&&(()=>del(S.devices,v.id)));
+const openAi=a=>form(a?'Editar IA':'Nueva IA',F.ai,a||{id:uid(),name:'',unit:'mensajes',used:0,limit:50,reset:Date.now()+5*H,every:5},o=>upsert(S.ais,o),a&&(()=>del(S.ais,a.id)));
+const openAcc=a=>form(a?'Editar cuenta':'Nueva cuenta',F.acc,a||{id:uid(),name:'',bal:0},o=>upsert(S.accounts,o),a&&(()=>del(S.accounts,a.id)));
+const openMet=x=>form(x?'Editar medidor':'Nuevo medidor',F.met,x||{id:uid(),name:'',val:0,max:10,unit:'',step:1},o=>{o.step=o.step||1;upsert(S.meters,o)},x&&(()=>del(S.meters,x.id)));
+function openMove(sign){
+  if(!S.accounts.length)return toast('Primero agrega una cuenta');
+  form(sign<0?'Registrar gasto':'Registrar ingreso',[{k:'amt',label:'Monto',type:'number',req:1},{k:'acc',label:'Cuenta',type:'select',opts:S.accounts.map(a=>[a.id,a.name])},{k:'note',label:'Concepto'}],
+   {amt:'',acc:S.accounts[0].id,note:''},o=>{const a=S.accounts.find(x=>x.id===o.acc),v=Math.abs(o.amt)*sign;if(!a||!v)return;
+    a.bal=(+a.bal||0)+v;if(sign<0)S.settings.budgetSpent+=Math.abs(v);S.moves.unshift({t:Date.now(),amt:v,note:o.note});S.moves=S.moves.slice(0,30)})}
+function openSettings(){
+  const st=S.settings;
+  form('Ajustes',[{k:'name',label:'Tu nombre'},{k:'start',label:'Inicio de jornada (hora, ej. 6)',type:'number'},{k:'end',label:'Fin de jornada (hora, ej. 18)',type:'number'},
+   {k:'cur',label:'Símbolo de moneda'},{k:'budget',label:'Presupuesto mensual (0 = sin presupuesto)',type:'number'},{k:'budgetSpent',label:'Gastado este mes',type:'number'},{k:'reset',label:'Borrar todo y empezar vacío',type:'checkbox'}],
+   {...st,reset:false},o=>{if(o.reset){S={settings:{...seed().settings,name:o.name,budget:0,budgetSpent:0},events:[],devices:[seed().devices[0]],ais:[],accounts:[],moves:[],meters:[]};hookBattery();return}
+    delete o.reset;o.start=((o.start%24)+24)%24;o.end=((o.end%24)+24)%24;o.cur=o.cur||'$';S.settings=o})}
+
+/* ---------- eventos de la interfaz ---------- */
+document.addEventListener('click',e=>{const t=e.target.closest('[data-ev],[data-dev],[data-ai],[data-aiu],[data-acc],[data-met],[data-mu],[data-bud]');if(!t)return;const d=t.dataset;
+  if(d.ev)openEv(S.events.find(x=>x.id===d.ev));
+  else if(d.dev)openDev(S.devices.find(x=>x.id===d.dev));
+  else if(d.aiu){const a=S.ais.find(x=>x.id===d.aiu);a.used=Math.max(0,+a.used+(+d.d));done()}
+  else if(d.ai)openAi(S.ais.find(x=>x.id===d.ai));
+  else if(d.acc)openAcc(S.accounts.find(x=>x.id===d.acc));
+  else if(d.mu){const x=S.meters.find(y=>y.id===d.mu);x.val=Math.max(0,Math.round((+x.val+d.d*x.step)*100)/100);done()}
+  else if(d.met)openMet(S.meters.find(x=>x.id===d.met));
+  else if(d.bud)openSettings()});
+$('addEv').onclick=()=>openEv();$('addDev').onclick=()=>openDev();$('addAi').onclick=()=>openAi();$('addAcc').onclick=()=>openAcc();
+$('addMet').onclick=()=>openMet();$('addExp').onclick=()=>openMove(-1);$('addInc').onclick=()=>openMove(1);$('bSettings').onclick=openSettings;
+$('bExport').onclick=()=>{try{const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='mi-panel-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();toast('Copia descargada')}catch(e){toast('No se pudo exportar aquí')}};
+$('bImport').onclick=()=>$('fileIn').click();
+$('fileIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!o.settings)throw 0;S=o;save();renderAll();hookBattery();toast('Datos importados')}catch(x){toast('Archivo no válido')}e.target.value=''};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('layer').innerHTML=''});
+
+renderAll();hookBattery();
+setInterval(renderClock,1000);
+setInterval(()=>{renderEvents();renderAi();renderBatt()},15000);
+if('serviceWorker' in navigator&&location.protocol==='https:'&&!/claude/.test(location.host))try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+}
+</script>
+</body>
+</html>
