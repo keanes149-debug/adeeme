@@ -26,6 +26,15 @@ Toca **Hablar**, di todo de corrido (por ejemplo: «gasté 250 en café, el tel�
 
 Todo se guarda en el `localStorage` del navegador. Usa **Exportar** para descargar una copia `.json` e **Importar** para cargarla en otro dispositivo.
 
+## Instalarla en el teléfono
+
+Para que sea una app (ícono en la pantalla de inicio, pantalla completa, funciona sin internet) tiene que estar publicada en una dirección `https://`. Con GitHub Pages:
+
+1. En GitHub: *Settings → Pages → Build and deployment → Source: Deploy from a branch*, rama `claude/zealous-hamilton-9f6ehe`, carpeta `/ (root)`, *Save*. (En repositorios privados GitHub Pages requiere un plan de pago; si no lo tienes, haz el repositorio público: no contiene datos ni claves.)
+2. Espera uno o dos minutos y abre `https://keanes149-debug.github.io/adeeme/` en el teléfono.
+3. **Android (Chrome):** menú ⋮ → *Instalar app* (o *Agregar a pantalla principal*).
+   **iPhone (Safari):** botón Compartir → *Agregar a pantalla de inicio*.
+
 ## Usarlo
 
 Abre `index.html` directamente, o sírvelo para poder instalarlo como app:

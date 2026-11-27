@@ -8,6 +8,11 @@
 <title>Mi Panel Diario</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Panel">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -175,7 +180,8 @@ function render(){
   rollAi();rollBudget();
   const now=Date.now(),st=S.settings,out=[dayTile()];
   [...S.events].sort((a,b)=>a.due-b.due).forEach(e=>out.push(tile('ev:'+e.id,evRing(e,now),e.name,fdate(e.due))));
-  S.devices.forEach(v=>out.push(tile('dev:'+v.id,ring(v.level/100,level(v.level/100,.4,.2),Math.round(v.level)+'%',v.charging?'cargando':'batería'),v.name,
+  const autoName=v=>v.auto&&!v.renamed?(/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)?'Este teléfono':'Esta computadora'):v.name;
+  S.devices.forEach(v=>out.push(tile('dev:'+v.id,ring(v.level/100,level(v.level/100,.4,.2),Math.round(v.level)+'%',v.charging?'cargando':'batería'),autoName(v),
     v.auto?(v.live?'en vivo':'sin lectura aquí'):ago(v.at))));
   S.ais.forEach(a=>{const free=1-Math.min(1,a.used/(a.limit||1)),pct=a.unit==='%';
     out.push(tile('ai:'+a.id,ring(free,level(free,.3,.1),pct?Math.round(free*100)+'%':String(Math.max(0,a.limit-a.used)),'libre'),a.name,
@@ -231,7 +237,7 @@ const F={
 
 const openEv=e=>form(e?'Editar evento':'Nuevo evento',F.ev,e||{id:uid(),name:'',due:at(3,10)},o=>upsert(S.events,o),e&&(()=>del(S.events,e.id)));
 const openDev=v=>v&&v.auto&&v.live?toast('Esta batería se lee sola'):form(v?'Editar dispositivo':'Nuevo dispositivo',F.dev,v||{id:uid(),name:'',level:50,charging:false},
-  o=>{o.level=Math.max(0,Math.min(100,o.level));o.at=Date.now();upsert(S.devices,o)},v&&!v.auto&&(()=>del(S.devices,v.id)));
+  o=>{o.level=Math.max(0,Math.min(100,o.level));o.at=Date.now();if(v&&v.auto&&o.name!==v.name)o.renamed=true;upsert(S.devices,o)},v&&!v.auto&&(()=>del(S.devices,v.id)));
 const openAiForm=a=>form(a?'Editar IA':'Nueva IA',F.ai,a||{id:uid(),name:'',unit:'mensajes',used:0,limit:50,reset:Date.now()+5*H,every:5},o=>upsert(S.ais,o),a&&(()=>del(S.ais,a.id)));
 const openAcc=a=>form(a?'Editar cuenta':'Nueva cuenta',F.acc,a||{id:uid(),name:'',bal:0},o=>upsert(S.accounts,o),a&&(()=>del(S.accounts,a.id)));
 const openMetForm=x=>form(x?'Editar medidor':'Nuevo medidor',F.met,x||{id:uid(),name:'',val:0,max:8,unit:'',step:1},o=>{o.step=o.step||1;upsert(S.meters,o)},x&&(()=>del(S.meters,x.id)));
